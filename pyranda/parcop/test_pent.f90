@@ -1,6 +1,7 @@
 PROGRAM test_pent
 
   USE iso_c_binding
+  USE MPI_F08
   USE LES_compact, ONLY : compact_type
   USE LES_patch, ONLY : patch_type
   USE LES_comm, ONLY : comm_type, LES_comm_world
@@ -8,9 +9,7 @@ PROGRAM test_pent
   USE LES_objects 
   USE parcop, ONLY : setup,ddx,point_to_objects,setup_mesh
   IMPLICIT NONE
-  INCLUDE "mpif.h"
 
-  
   INTEGER(c_int)                 :: nx,ny,nz,px,py,pz
   REAL(c_double)                 :: x1,xn,y1,yn,z1,zn
   CHARACTER(KIND=c_char,LEN=4)   :: bx1,bxn,by1,byn,bz1,bzn

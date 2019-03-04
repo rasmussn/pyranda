@@ -57,7 +57,7 @@ CONTAINS
   SUBROUTINE setup_mesh_data_x3(patch,level,x1,x2,x3,mesh_per) !mesh_perX,mesh_perY,mesh_perZ)
     IMPLICIT NONE 
     INTEGER(c_int), INTENT(IN) :: patch,level
-    REAL(kind=8), DIMENSION(:,:,:), INTENT(IN) :: x1,x2,x3
+    REAL(c_double), DIMENSION(:,:,:), INTENT(IN) :: x1,x2,x3
     LOGICAL, INTENT(IN) :: mesh_per
     !LOGICAL, INTENT(IN) :: mesh_perX,mesh_perY,mesh_perZ
     CALL mesh_data(patch,level)%setup(patch_data(patch,level),&

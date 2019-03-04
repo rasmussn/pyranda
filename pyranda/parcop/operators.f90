@@ -364,13 +364,19 @@
       CALL ddx(fyy,ttzy);   CALL ddy(fxy,tmp); ttzy = ttzy - (tmp - fyy + fxx)/mesh_ptr%xgrid
       CALL ddx(fyz,ttzz);   CALL ddy(fxz,tmp); ttzz = ttzz - (tmp - fyz      )/mesh_ptr%xgrid
      CASE(2) ! Spherical
-      CALL ddy(fzx,ttxx);   CALL ddz(fyx,tmp); ttxx = (ttxx - tmp/SIN(mesh_ptr%ygrid) - fzy + fyz + fzx  /TAN(mesh_ptr%ygrid))/mesh_ptr%xgrid
-      CALL ddy(fzy,ttxy);   CALL ddz(fyy,tmp); ttxy = (ttxy - tmp/SIN(mesh_ptr%ygrid) + fzx + (fyz + fzy)/TAN(mesh_ptr%ygrid))/mesh_ptr%xgrid
-      CALL ddy(fzz,ttxz);   CALL ddz(fyz,tmp); ttxz = (ttxz - tmp/SIN(mesh_ptr%ygrid) - fyx + (fzz - fyy)/TAN(mesh_ptr%ygrid))/mesh_ptr%xgrid
+      CALL ddy(fzx,ttxx);   CALL ddz(fyx,tmp); ttxx = (ttxx - tmp/SIN(mesh_ptr%ygrid) - fzy + fyz       &
+                                                     + fzx  /TAN(mesh_ptr%ygrid))/mesh_ptr%xgrid
+      CALL ddy(fzy,ttxy);   CALL ddz(fyy,tmp); ttxy = (ttxy - tmp/SIN(mesh_ptr%ygrid) + fzx             &
+                                                     + (fyz + fzy)/TAN(mesh_ptr%ygrid))/mesh_ptr%xgrid
+      CALL ddy(fzz,ttxz);   CALL ddz(fyz,tmp); ttxz = (ttxz - tmp/SIN(mesh_ptr%ygrid) - fyx             &
+                                                     + (fzz - fyy)/TAN(mesh_ptr%ygrid))/mesh_ptr%xgrid
  
-      CALL ddz(fxx,ttyx);   CALL ddx(fzx,tmp); ttyx = (ttyx/SIN(mesh_ptr%ygrid) - tmp - fzx - fxz                          )/mesh_ptr%xgrid
-      CALL ddz(fxy,ttyy);   CALL ddx(fzy,tmp); ttyy = (ttyy/SIN(mesh_ptr%ygrid) - tmp - fzy       - fxz/TAN(mesh_ptr%ygrid))/mesh_ptr%xgrid
-      CALL ddz(fxz,ttyz);   CALL ddx(fzz,tmp); ttyz = (ttyz/SIN(mesh_ptr%ygrid) - tmp + fxx - fzz + fxy/TAN(mesh_ptr%ygrid))/mesh_ptr%xgrid
+      CALL ddz(fxx,ttyx);   CALL ddx(fzx,tmp); ttyx = (ttyx/SIN(mesh_ptr%ygrid) - tmp - fzx - fxz                          ) &
+                                                     /mesh_ptr%xgrid
+      CALL ddz(fxy,ttyy);   CALL ddx(fzy,tmp); ttyy = (ttyy/SIN(mesh_ptr%ygrid) - tmp - fzy       - fxz/TAN(mesh_ptr%ygrid)) &
+                                                     /mesh_ptr%xgrid
+      CALL ddz(fxz,ttyz);   CALL ddx(fzz,tmp); ttyz = (ttyz/SIN(mesh_ptr%ygrid) - tmp + fxx - fzz + fxy/TAN(mesh_ptr%ygrid)) &
+                                                     /mesh_ptr%xgrid
 
       CALL ddx(fyx,ttzx);   CALL ddy(fxx,tmp); ttzx = ttzx - (tmp - fyx - fxy)/mesh_ptr%xgrid
       CALL ddx(fyy,ttzy);   CALL ddy(fxy,tmp); ttzy = ttzy - (tmp - fyy + fxx)/mesh_ptr%xgrid

@@ -12,17 +12,18 @@
  MODULE LES_comm
 !===================================================================================================
   USE iso_c_binding
-  !USE MPI
+  USE MPI_F08
   !USE LES_input, ONLY : xop,yop,zop,xdice,ydice,zdice,compressible,calcSpectrum,print_screen
   USE LES_patch, ONLY : patch_type
   IMPLICIT NONE
-  INCLUDE "mpif.h"
+
+  TYPE(MPI_Comm)            :: LES_comm_world     ! settable world comm       *APIVAR*
+
   INTEGER(c_int), PARAMETER :: master = 0         ! master process
-  INTEGER(c_int)            :: LES_comm_world = 0 ! settable world comm       *APIVAR*
   INTEGER(c_int)            :: world_id = 0       ! world-rank of MPI process *APIVAR*
   INTEGER(c_int)            :: world_np = 1       ! number of MPI processes
-  INTEGER(c_int), DIMENSION(MPI_STATUS_SIZE) :: mpistatus
-  INTEGER(c_int) :: mpisource,mpitag,mpierr
+  INTEGER(c_int)   :: mpisource,mpitag,mpierr
+  TYPE(MPI_Status) :: mpistatus
 
   LOGICAL(c_bool), PARAMETER :: compressible = .TRUE.
   LOGICAL(c_bool), PARAMETER :: calcSpectrum = .FALSE.
@@ -36,15 +37,20 @@
   
   TYPE comm_type
     ! PATCH COMMUNICATOR ---------------------------------------------------------------------------
-    INTEGER(c_int) :: patcom,patcom_np,patcom_id
+    TYPE(MPI_Comm) :: patcom
+    INTEGER(c_int) :: patcom_np,patcom_id
+
     ! CARTESIAN COMMUNICATORS ----------------------------------------------------------------------
-    INTEGER(c_int) :: xyzcom,xyzcom_np,xyzcom_id
-    INTEGER(c_int) :: xycom,xycom_np,xycom_id
-    INTEGER(c_int) :: xzcom,xzcom_np,xzcom_id
-    INTEGER(c_int) :: yzcom,yzcom_np,yzcom_id
-    INTEGER(c_int) :: xcom,xcom_np,xcom_id,xcom_lo,xcom_hi
-    INTEGER(c_int) :: ycom,ycom_np,ycom_id,ycom_lo,ycom_hi
-    INTEGER(c_int) :: zcom,zcom_np,zcom_id,zcom_lo,zcom_hi
+    TYPE(MPI_Comm) :: xcom,ycom,zcom
+    TYPE(MPI_Comm) :: xyzcom,xycom,xzcom,yzcom
+
+    INTEGER(c_int) :: xyzcom_np,xyzcom_id
+    INTEGER(c_int) :: xycom_np,xycom_id
+    INTEGER(c_int) :: xzcom_np,xzcom_id
+    INTEGER(c_int) :: yzcom_np,yzcom_id
+    INTEGER(c_int) :: xcom_np,xcom_id,xcom_lo,xcom_hi
+    INTEGER(c_int) :: ycom_np,ycom_id,ycom_lo,ycom_hi
+    INTEGER(c_int) :: zcom_np,zcom_id,zcom_lo,zcom_hi
     INTEGER(c_int), DIMENSION(2) :: xrange,yrange,zrange
     ! TRANSPOSES -----------------------------------------------------------------------------------
     INTEGER(c_int) :: bx_xtran ! number of x grid points per processor after x transpose

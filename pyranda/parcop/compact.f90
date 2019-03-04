@@ -10,7 +10,7 @@
 !===================================================================================================
 module LES_compact
   USE iso_c_binding
-  !USE MPI
+  USE MPI_F08
   !USE LES_input, ONLY : bpp_lus_opt,use_ppent_opt,directcom,zerodx,zerody,zerodz
   USE LES_stencils
   USE LES_patch, ONLY : patch_type
@@ -20,7 +20,6 @@ module LES_compact
     btrid_block4_lus, ptrid_block4_lus, btrid_block4_lud, ptrid_block4_lud
   use LES_pentadiagonal, only : bpentLUS2y
   IMPLICIT NONE
-  INCLUDE "mpif.h"
   REAL(KIND=c_double), PARAMETER :: zero=0.0_c_double, one=1.0_c_double
   LOGICAL(c_bool) :: debug=.false.
 
@@ -43,7 +42,8 @@ module LES_compact
     LOGICAL(c_bool) :: implicit_op  ! invert lhs
     LOGICAL(c_bool) :: periodic  ! periodicity
     INTEGER(c_int), dimension(2) :: bc,range  ! 1D bcs, range
-    INTEGER(c_int) :: hash,np,id,lo,hi  ! 1D comm data
+    TYPE(MPI_Comm) :: hash
+    INTEGER(c_int) :: np,id,lo,hi       ! 1D comm data
     real(KIND=c_double) :: d  ! nomimal grid spacing
     real(KIND=c_double) :: sh = zero ! shift from base grid
     real(kind=c_double), dimension(:,:), allocatable :: art ! transposed rhs (matrix compat.)
@@ -155,7 +155,8 @@ module LES_compact
   TYPE comm1_type  ! 1D ! for testing
 !    INTEGER(c_int) :: n,p  ! -> n[x,y,z], p[x,y,z]
     logical(c_bool) :: periodic  ! -> periodic[x,y,z]
-    INTEGER(c_int) :: hash,np,id,lo,hi,range(2)  ! -> [x,y,z]com,com_{np,id,lo,hi},range
+    TYPE(MPI_Comm) :: hash                       ! -> [x,y,z]com,com_{np,id,lo,hi},range
+    INTEGER(c_int) :: np,id,lo,hi,range(2)
   END TYPE comm1_type
 
 !   type(comm1_type) :: xcom_data,ycom_data,zcom_data
@@ -170,11 +171,11 @@ contains
     type(mesh1_type), intent(in) :: msh
     integer(c_int), intent(in) :: bc(2)
     logical(c_bool), intent(in) :: null_op
-    real(kind=8), dimension(:,:), allocatable :: gar
-    real(kind=8), dimension(:,:), allocatable :: gal
-    real(kind=8), dimension(:,:), allocatable :: al1,al2
-    real(kind=8), dimension(:,:), allocatable :: rop
-    real(kind=8), dimension(:,:,:), allocatable :: ro
+    real(c_double), dimension(:,:), allocatable :: gar
+    real(c_double), dimension(:,:), allocatable :: gal
+    real(c_double), dimension(:,:), allocatable :: al1,al2
+    real(c_double), dimension(:,:), allocatable :: rop
+    real(c_double), dimension(:,:,:), allocatable :: ro
     integer :: m,n,np,nr,nl,ni,nol,nal,naa  ! local surrogates
     integer :: i,j
     ! copy weight data
@@ -309,7 +310,7 @@ contains
     real(kind=c_double), dimension(:,:,:), intent(in), optional :: vb1,vb2 ! ghost values
     real(kind=c_double), dimension(:,:), intent(in), optional :: dv1,dv2 ! boundary values
     real(kind=c_double), dimension(size(v,1)+1,size(v,2),size(v,3)) :: dv
-    real(kind=8), dimension(:,:), allocatable :: vbr,vbs
+    real(kind=c_double), dimension(:,:), allocatable :: vbr,vbs
     real(kind=c_double), dimension(:,:,:), allocatable :: vbr1,vbr2,vbs1,vbs2
     real(kind=c_double), dimension(:,:,:), allocatable :: dvop
     real(kind=c_double), dimension(:,:,:,:), allocatable :: dvo
@@ -441,9 +442,13 @@ contains
      allocate( vbr(my,mz), vbs(my,mz) )
      vbs = dv(1,:,:)
      nsr = size(vbs)
+! Rasmussen
+!     call MPI_Sendrecv( vbs, nsr, MPI_DOUBLE_PRECISION, op%lo, 1, &
+!                        vbr, nsr, MPI_DOUBLE_PRECISION, op%hi, 1, &
+!                        op%hash, mpistatus, mpierr )
      call MPI_Sendrecv( vbs, nsr, MPI_DOUBLE_PRECISION, op%lo, 1, &
                         vbr, nsr, MPI_DOUBLE_PRECISION, op%hi, 1, &
-                        op%hash, mpistatus, mpierr )
+                        MPI_COMM_WORLD, mpistatus, mpierr )
      if( op%hi /= MPI_PROC_NULL ) dv(mx+1,:,:) = vbr
      deallocate( vbr, vbs )
   end function eval_compact_cf1x
@@ -455,7 +460,7 @@ contains
     real(kind=c_double), dimension(:,:,:), intent(in), optional :: vb1,vb2 ! ghost values
     real(kind=c_double), dimension(:,:), intent(in), optional :: dv1,dv2 ! boundary values
     real(kind=c_double), dimension(size(v,1),size(v,2)+1,size(v,3)) :: dv
-    real(kind=8), dimension(:,:), allocatable :: vbr,vbs
+    real(kind=c_double), dimension(:,:), allocatable :: vbr,vbs
     real(kind=c_double), dimension(:,:,:), allocatable :: vbr1,vbr2,vbs1,vbs2
     real(kind=c_double), dimension(:,:,:), allocatable :: dvop
     real(kind=c_double), dimension(:,:,:,:), allocatable :: dvo
@@ -601,7 +606,7 @@ contains
     real(kind=c_double), dimension(:,:,:), intent(in), optional :: vb1,vb2 ! ghost values
     real(kind=c_double), dimension(:,:), intent(in), optional :: dv1,dv2 ! boundary values
     real(kind=c_double), dimension(size(v,1),size(v,2),size(v,3)+1) :: dv
-   real(kind=8), dimension(:,:), allocatable :: vbr,vbs
+    real(kind=c_double), dimension(:,:), allocatable :: vbr,vbs
     real(kind=c_double), dimension(:,:,:), allocatable :: vbr1,vbr2,vbs1,vbs2
     real(kind=c_double), dimension(:,:,:), allocatable :: dvop
     real(kind=c_double), dimension(:,:,:,:), allocatable :: dvo
@@ -1790,7 +1795,8 @@ contains
      else
      do k=1,az
      do j=1,ay
-      dv(ax-2,j,k) = op%art(ax-2,1)*(v(ax-5,j,k)-v(ax,j,k))+op%art(ax-2,2)*(v(ax-4,j,k)-v(ax,j,k))+op%art(ax-2,3)*(v(ax-3,j,k)-v(ax-1,j,k))
+      dv(ax-2,j,k) = op%art(ax-2,1)*(v(ax-5,j,k)-v(ax,j,k)) &
+                    +op%art(ax-2,2)*(v(ax-4,j,k)-v(ax,j,k))+op%art(ax-2,3)*(v(ax-3,j,k)-v(ax-1,j,k))
       dv(ax-1,j,k) = sum(op%art(ax-1,1:4)*(v(ax-4:ax-1,j,k)-v(ax,j,k)))
       dv(ax,j,k)   = sum(op%art(ax,  1:3)*(v(ax-3:ax-1,j,k)-v(ax,j,k)))
      end do
@@ -1799,9 +1805,12 @@ contains
     else ! centered interior weights
      do k=1,az
      do j=1,ay
-      dv(ax-2,j,k) = op%art(ax-2,5)*(v(ax-1,j,k)-v(ax-3,j,k))+op%art(ax-2,6)*(v(ax,j,k)-v(ax-4,j,k))+op%art(ax-2,7)*(vbr2(1,j,k)-v(ax-5,j,k))
-      dv(ax-1,j,k) = op%art(ax-1,5)*(v(ax,j,k)-v(ax-2,j,k))+op%art(ax-1,6)*(vbr2(1,j,k)-v(ax-3,j,k))+op%art(ax-1,7)*(vbr2(2,j,k)-v(ax-4,j,k))
-      dv(ax,j,k) = op%art(ax,5)*(vbr2(1,j,k)-v(ax-1,j,k))+op%art(ax,6)*(vbr2(2,j,k)-v(ax-2,j,k))+op%art(ax,7)*(vbr2(3,j,k)-v(ax-3,j,k))
+      dv(ax-2,j,k) = op%art(ax-2,5)*(v(ax-1,j,k)-v(ax-3,j,k)) &
+                    +op%art(ax-2,6)*(v(ax,j,k)-v(ax-4,j,k))+op%art(ax-2,7)*(vbr2(1,j,k)-v(ax-5,j,k))
+      dv(ax-1,j,k) = op%art(ax-1,5)*(v(ax,j,k)-v(ax-2,j,k)) &
+                    +op%art(ax-1,6)*(vbr2(1,j,k)-v(ax-3,j,k))+op%art(ax-1,7)*(vbr2(2,j,k)-v(ax-4,j,k))
+      dv(ax,j,k) = op%art(ax,5)*(vbr2(1,j,k)-v(ax-1,j,k)) &
+                  +op%art(ax,6)*(vbr2(2,j,k)-v(ax-2,j,k))+op%art(ax,7)*(vbr2(3,j,k)-v(ax-3,j,k))
      end do
      end do
     endif
@@ -2021,7 +2030,8 @@ contains
      else
      do k=1,az
      do j=1,ay
-      dv(ax-2,j,k) = op%ar(1,ax-2)*(v(ax-5,j,k)-v(ax,j,k))+op%ar(2,ax-2)*(v(ax-4,j,k)-v(ax,j,k))+op%ar(3,ax-2)*(v(ax-3,j,k)-v(ax-1,j,k))
+      dv(ax-2,j,k) = op%ar(1,ax-2)*(v(ax-5,j,k)-v(ax,j,k)) &
+                    +op%ar(2,ax-2)*(v(ax-4,j,k)-v(ax,j,k))+op%ar(3,ax-2)*(v(ax-3,j,k)-v(ax-1,j,k))
       dv(ax-1,j,k) = sum(op%ar(1:4,ax-1)*(v(ax-4:ax-1,j,k)-v(ax,j,k)))
       dv(ax,j,k)   = sum(op%ar(1:3,ax  )*(v(ax-3:ax-1,j,k)-v(ax,j,k)))
      end do
@@ -2030,9 +2040,12 @@ contains
     else ! centered interior weights
      do k=1,az
      do j=1,ay
-      dv(ax-2,j,k) = op%ar(5,ax-2)*(v(ax-1,j,k)-v(ax-3,j,k))+op%ar(6,ax-2)*(v(ax,j,k)-v(ax-4,j,k))+op%ar(7,ax-2)*(vbr2(1,j,k)-v(ax-5,j,k))
-      dv(ax-1,j,k) = op%ar(5,ax-1)*(v(ax,j,k)-v(ax-2,j,k))+op%ar(6,ax-1)*(vbr2(1,j,k)-v(ax-3,j,k))+op%ar(7,ax-1)*(vbr2(2,j,k)-v(ax-4,j,k))
-      dv(ax,j,k)   = op%ar(5,ax  )*(vbr2(1,j,k)-v(ax-1,j,k))+op%ar(6,ax)*(vbr2(2,j,k)-v(ax-2,j,k))+op%ar(7,ax  )*(vbr2(3,j,k)-v(ax-3,j,k))
+      dv(ax-2,j,k) = op%ar(5,ax-2)*(v(ax-1,j,k)-v(ax-3,j,k)) &
+                    +op%ar(6,ax-2)*(v(ax,j,k)-v(ax-4,j,k))+op%ar(7,ax-2)*(vbr2(1,j,k)-v(ax-5,j,k))
+      dv(ax-1,j,k) = op%ar(5,ax-1)*(v(ax,j,k)-v(ax-2,j,k)) &
+                    +op%ar(6,ax-1)*(vbr2(1,j,k)-v(ax-3,j,k))+op%ar(7,ax-1)*(vbr2(2,j,k)-v(ax-4,j,k))
+      dv(ax,j,k)   = op%ar(5,ax  )*(vbr2(1,j,k)-v(ax-1,j,k)) &
+                    +op%ar(6,ax)*(vbr2(2,j,k)-v(ax-2,j,k))+op%ar(7,ax  )*(vbr2(3,j,k)-v(ax-3,j,k))
      end do
      end do
     endif
@@ -2251,7 +2264,8 @@ contains
      else
      do k=1,az
      do i=1,ax
-      dv(i,ay-2,k) = op%ar(1,ay-2)*(v(i,ay-5,k)-v(i,ay,k))+op%ar(2,ay-2)*(v(i,ay-4,k)-v(i,ay,k))+op%ar(3,ay-2)*(v(i,ay-3,k)-v(i,ay-1,k))
+      dv(i,ay-2,k) = op%ar(1,ay-2)*(v(i,ay-5,k)-v(i,ay,k)) &
+                    +op%ar(2,ay-2)*(v(i,ay-4,k)-v(i,ay,k))+op%ar(3,ay-2)*(v(i,ay-3,k)-v(i,ay-1,k))
       dv(i,ay-1,k) = sum(op%ar(1:4,ay-1)*(v(i,ay-4:ay-1,k)-v(i,ay,k)))
       dv(i,ay,k)   = sum(op%ar(1:3,ay  )*(v(i,ay-3:ay-1,k)-v(i,ay,k)))
      end do
@@ -2260,9 +2274,12 @@ contains
     else ! centered interior weights
      do k=1,az
      do i=1,ax
-      dv(i,ay-2,k) = op%ar(5,ay-2)*(v(i,ay-1,k)-v(i,ay-3,k))+op%ar(6,ay-2)*(v(i,ay,k)-v(i,ay-4,k))+op%ar(7,ay-2)*(vbr2(i,1,k)-v(i,ay-5,k))
-      dv(i,ay-1,k) = op%ar(5,ay-1)*(v(i,ay,k)-v(i,ay-2,k))+op%ar(6,ay-1)*(vbr2(i,1,k)-v(i,ay-3,k))+op%ar(7,ay-1)*(vbr2(i,2,k)-v(i,ay-4,k))
-      dv(i,ay,k)   = op%ar(5,ay  )*(vbr2(i,1,k)-v(i,ay-1,k))+op%ar(6,ay)*(vbr2(i,2,k)-v(i,ay-2,k))+op%ar(7,ay  )*(vbr2(i,3,k)-v(i,ay-3,k))
+      dv(i,ay-2,k) = op%ar(5,ay-2)*(v(i,ay-1,k)-v(i,ay-3,k)) &
+                    +op%ar(6,ay-2)*(v(i,ay,k)-v(i,ay-4,k))+op%ar(7,ay-2)*(vbr2(i,1,k)-v(i,ay-5,k))
+      dv(i,ay-1,k) = op%ar(5,ay-1)*(v(i,ay,k)-v(i,ay-2,k)) &
+                    +op%ar(6,ay-1)*(vbr2(i,1,k)-v(i,ay-3,k))+op%ar(7,ay-1)*(vbr2(i,2,k)-v(i,ay-4,k))
+      dv(i,ay,k)   = op%ar(5,ay  )*(vbr2(i,1,k)-v(i,ay-1,k)) &
+                    +op%ar(6,ay)*(vbr2(i,2,k)-v(i,ay-2,k))+op%ar(7,ay  )*(vbr2(i,3,k)-v(i,ay-3,k))
      end do
      end do
     endif
@@ -2469,7 +2486,8 @@ contains
      else
      do j=1,ay
      do i=1,ax
-      dv(i,j,az-2) = op%ar(1,az-2)*(v(i,j,az-5)-v(i,j,az))+op%ar(2,az-2)*(v(i,j,az-4)-v(i,j,az))+op%ar(3,az-2)*(v(i,j,az-3)-v(i,j,az-1))
+      dv(i,j,az-2) = op%ar(1,az-2)*(v(i,j,az-5)-v(i,j,az)) &
+                    +op%ar(2,az-2)*(v(i,j,az-4)-v(i,j,az))+op%ar(3,az-2)*(v(i,j,az-3)-v(i,j,az-1))
       dv(i,j,az-1) = sum(op%ar(1:4,az-1)*(v(i,j,az-4:az-1)-v(i,j,az)))
       dv(i,j,az)   = sum(op%ar(1:3,az  )*(v(i,j,az-3:az-1)-v(i,j,az)))
      end do
@@ -2478,9 +2496,12 @@ contains
     else ! centered interior weights
      do j=1,ay
      do i=1,ax
-      dv(i,j,az-2) = op%ar(5,az-2)*(v(i,j,az-1)-v(i,j,az-3))+op%ar(6,az-2)*(v(i,j,az)-v(i,j,az-4))+op%ar(7,az-2)*(vbr2(i,j,1)-v(i,j,az-5))
-      dv(i,j,az-1) = op%ar(5,az-1)*(v(i,j,az)-v(i,j,az-2))+op%ar(6,az-1)*(vbr2(i,j,1)-v(i,j,az-3))+op%ar(7,az-1)*(vbr2(i,j,2)-v(i,j,az-4))
-      dv(i,j,az)   = op%ar(5,az  )*(vbr2(i,j,1)-v(i,j,az-1))+op%ar(6,az)*(vbr2(i,j,2)-v(i,j,az-2))+op%ar(7,az  )*(vbr2(i,j,3)-v(i,j,az-3))
+      dv(i,j,az-2) = op%ar(5,az-2)*(v(i,j,az-1)-v(i,j,az-3)) &
+                    +op%ar(6,az-2)*(v(i,j,az)-v(i,j,az-4))+op%ar(7,az-2)*(vbr2(i,j,1)-v(i,j,az-5))
+      dv(i,j,az-1) = op%ar(5,az-1)*(v(i,j,az)-v(i,j,az-2)) &
+                    +op%ar(6,az-1)*(vbr2(i,j,1)-v(i,j,az-3))+op%ar(7,az-1)*(vbr2(i,j,2)-v(i,j,az-4))
+      dv(i,j,az)   = op%ar(5,az  )*(vbr2(i,j,1)-v(i,j,az-1)) &
+                    +op%ar(6,az)*(vbr2(i,j,2)-v(i,j,az-2))+op%ar(7,az  )*(vbr2(i,j,3)-v(i,j,az-3))
      end do
      end do
     endif
@@ -3539,21 +3560,24 @@ contains
       if( null_op ) cycle
       call cops%d1x(n)%setup(weight,xcom,xmsh,cops%mbc(:,1,n),null_opx)
       cops%d1x(n)%directcom = directcom
-      if( spew .and. .not. cops%d1x(n)%null_op ) print *,n,'setting up compact d1x ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
+      if( spew .and. .not. cops%d1x(n)%null_op ) &
+          print *,n,'setting up compact d1x ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
     end do
     do n=1,cops%nop(2)
       cops%d1y(n)%null_op = null_op
       if( null_op ) cycle
       call cops%d1y(n)%setup(weight,ycom,ymsh,cops%mbc(:,2,n),null_opy)
       cops%d1y(n)%directcom = directcom
-      if( spew .and. .not. cops%d1y(n)%null_op ) print *,n,'setting up compact d1y ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
+      if( spew .and. .not. cops%d1y(n)%null_op ) &
+          print *,n,'setting up compact d1y ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
     end do
     do n=1,cops%nop(3)
       cops%d1z(n)%null_op = null_op
       if( null_op ) cycle
      call cops%d1z(n)%setup(weight,zcom,zmsh,cops%mbc(:,3,n),null_opz)
       cops%d1z(n)%directcom = directcom
-      if( spew .and. .not. cops%d1z(n)%null_op ) print *,n,'setting up compact d1z ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
+      if( spew .and. .not. cops%d1z(n)%null_op ) &
+          print *,n,'setting up compact d1z ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
     end do
     ! d2
     spec = cops%control%d2spec
@@ -3569,21 +3593,24 @@ contains
       if( null_op ) cycle
       call cops%d2x(n)%setup(weight,xcom,xmsh,cops%mbc(:,1,n),null_opx)
       cops%d2x(n)%directcom = directcom
-      if( spew .and. .not. cops%d2x(n)%null_op ) print *,n,'setting up compact d2x ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
+      if( spew .and. .not. cops%d2x(n)%null_op ) &
+          print *,n,'setting up compact d2x ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
     end do
     do n=1,cops%nop(2)
       cops%d2y(n)%null_op = null_op
       if( null_op ) cycle
       call cops%d2y(n)%setup(weight,ycom,ymsh,cops%mbc(:,2,n),null_opy)
       cops%d2y(n)%directcom = directcom
-      if( spew .and. .not. cops%d2y(n)%null_op ) print *,n,'setting up compact d2y ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
+      if( spew .and. .not. cops%d2y(n)%null_op ) &
+          print *,n,'setting up compact d2y ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
     end do
     do n=1,cops%nop(3)
       cops%d2z(n)%null_op = null_op
       if( null_op ) cycle
      call cops%d2z(n)%setup(weight,zcom,zmsh,cops%mbc(:,3,n),null_opz)
       cops%d2z(n)%directcom = directcom
-      if( spew .and. .not. cops%d2z(n)%null_op ) print *,n,'setting up compact d2z ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
+      if( spew .and. .not. cops%d2z(n)%null_op ) &
+          print *,n,'setting up compact d2z ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
     end do
     ! d4
     spec = cops%control%d4spec
@@ -3599,21 +3626,24 @@ contains
       if( null_op ) cycle
       call cops%d4x(n)%setup(weight,xcom,xmsh,cops%mbc(:,1,n),null_opx)
       cops%d4x(n)%directcom = directcom
-      if( spew .and. .not. cops%d4x(n)%null_op ) print *,n,'setting up compact d4x ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
+      if( spew .and. .not. cops%d4x(n)%null_op ) &
+          print *,n,'setting up compact d4x ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
     end do
     do n=1,cops%nop(2)
       cops%d4y(n)%null_op = null_op
       if( null_op ) cycle
       call cops%d4y(n)%setup(weight,ycom,ymsh,cops%mbc(:,2,n),null_opy)
       cops%d4y(n)%directcom = directcom
-      if( spew .and. .not. cops%d4y(n)%null_op ) print *,n,'setting up compact d4y ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
+      if( spew .and. .not. cops%d4y(n)%null_op ) &
+          print *,n,'setting up compact d4y ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
     end do
     do n=1,cops%nop(3)
       cops%d4z(n)%null_op = null_op
       if( null_op ) cycle
       call cops%d4z(n)%setup(weight,zcom,zmsh,cops%mbc(:,3,n),null_opz)
       cops%d4z(n)%directcom = directcom
-      if( spew .and. .not. cops%d4z(n)%null_op ) print *,n,'setting up compact d4z ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
+      if( spew .and. .not. cops%d4z(n)%null_op ) &
+          print *,n,'setting up compact d4z ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
     end do
     ! d8
     spec = cops%control%d8spec
@@ -3629,21 +3659,24 @@ contains
       if( null_op ) cycle
       call cops%d8x(n)%setup(weight,xcom,xmsh,cops%mbc(:,1,n),null_opx)
       cops%d8x(n)%directcom = directcom
-      if( spew .and. .not. cops%d8x(n)%null_op ) print *,n,'setting up compact d8x ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
+      if( spew .and. .not. cops%d8x(n)%null_op ) &
+          print *,n,'setting up compact d8x ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
     end do
     do n=1,cops%nop(2)
       cops%d8y(n)%null_op = null_op
       if( null_op ) cycle
       call cops%d8y(n)%setup(weight,ycom,ymsh,cops%mbc(:,2,n),null_opy)
       cops%d8y(n)%directcom = directcom
-      if( spew .and. .not. cops%d8y(n)%null_op ) print *,n,'setting up compact d8y ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
+      if( spew .and. .not. cops%d8y(n)%null_op ) &
+          print *,n,'setting up compact d8y ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
     end do
     do n=1,cops%nop(3)
       cops%d8z(n)%null_op = null_op
       if( null_op ) cycle
       call cops%d8z(n)%setup(weight,zcom,zmsh,cops%mbc(:,3,n),null_opz)
       cops%d8z(n)%directcom = directcom
-      if( spew .and. .not. cops%d8z(n)%null_op ) print *,n,'setting up compact d8z ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
+      if( spew .and. .not. cops%d8z(n)%null_op ) &
+          print *,n,'setting up compact d8z ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
     end do
     ! gf
     spec = cops%control%gfspec
@@ -3659,21 +3692,24 @@ contains
       if( null_op ) cycle
       call cops%gfx(n)%setup(weight,xcom,xmsh,cops%mbc(:,1,n),null_opx)
       cops%gfx(n)%directcom = directcom
-      if( spew .and. .not. cops%gfx(n)%null_op ) print *,n,'setting up compact gfx ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
+      if( spew .and. .not. cops%gfx(n)%null_op ) &
+          print *,n,'setting up compact gfx ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
     end do
     do n=1,cops%nop(2)
       cops%gfy(n)%null_op = null_op
       if( null_op ) cycle
       call cops%gfy(n)%setup(weight,ycom,ymsh,cops%mbc(:,2,n),null_opy)
       cops%gfy(n)%directcom = directcom
-      if( spew .and. .not. cops%gfy(n)%null_op ) print *,n,'setting up compact gfy ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
+      if( spew .and. .not. cops%gfy(n)%null_op ) &
+          print *,n,'setting up compact gfy ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
     end do
     do n=1,cops%nop(3)
       cops%gfz(n)%null_op = null_op
       if( null_op ) cycle
       call cops%gfz(n)%setup(weight,zcom,zmsh,cops%mbc(:,3,n),null_opz)
       cops%gfz(n)%directcom = directcom
-      if( spew .and. .not. cops%gfz(n)%null_op ) print *,n,'setting up compact gfz ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
+      if( spew .and. .not. cops%gfz(n)%null_op ) &
+          print *,n,'setting up compact gfz ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
     end do
     ! sf
     spec = cops%control%sfspec
@@ -3689,21 +3725,24 @@ contains
       if( null_op ) cycle
       call cops%sfx(n)%setup(weight,xcom,xmsh,cops%mbc(:,1,n),null_opx)
       cops%sfx(n)%directcom = directcom
-      if( spew .and. .not. cops%sfx(n)%null_op ) print *,n,'setting up compact sfx ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
+      if( spew .and. .not. cops%sfx(n)%null_op ) &
+          print *,n,'setting up compact sfx ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
     end do
     do n=1,cops%nop(2)
       cops%sfy(n)%null_op = null_op
       if( null_op ) cycle
       call cops%sfy(n)%setup(weight,ycom,ymsh,cops%mbc(:,2,n),null_opy)
       cops%sfy(n)%directcom = directcom
-      if( spew .and. .not. cops%sfy(n)%null_op ) print *,n,'setting up compact sfy ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
+      if( spew .and. .not. cops%sfy(n)%null_op ) &
+          print *,n,'setting up compact sfy ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
     end do
     do n=1,cops%nop(3)
       cops%sfz(n)%null_op = null_op
       if( null_op ) cycle
       call cops%sfz(n)%setup(weight,zcom,zmsh,cops%mbc(:,3,n),null_opz)
       cops%sfz(n)%directcom = directcom
-      if( spew .and. .not. cops%sfz(n)%null_op ) print *,n,'setting up compact sfz ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
+      if( spew .and. .not. cops%sfz(n)%null_op ) &
+          print *,n,'setting up compact sfz ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
     end do
     ! tf
     spec = cops%control%tfspec
@@ -3719,21 +3758,24 @@ contains
       if( null_op ) cycle
       call cops%tfx(n)%setup(weight,xcom,xmsh,cops%mbc(:,1,n),null_opx)
       cops%tfx(n)%directcom = directcom
-      if( spew .and. .not. cops%tfx(n)%null_op ) print *,n,'setting up compact tfx ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
+      if( spew .and. .not. cops%tfx(n)%null_op ) &
+          print *,n,'setting up compact tfx ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
     end do
     do n=1,cops%nop(2)
       cops%tfy(n)%null_op = null_op
       if( null_op ) cycle
       call cops%tfy(n)%setup(weight,ycom,ymsh,cops%mbc(:,2,n),null_opy)
       cops%tfy(n)%directcom = directcom
-      if( spew .and. .not. cops%tfy(n)%null_op ) print *,n,'setting up compact tfy ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
+      if( spew .and. .not. cops%tfy(n)%null_op ) &
+          print *,n,'setting up compact tfy ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
     end do
     do n=1,cops%nop(3)
       cops%tfz(n)%null_op = null_op
       if( null_op ) cycle
       call cops%tfz(n)%setup(weight,zcom,zmsh,cops%mbc(:,3,n),null_opz)
       cops%tfz(n)%directcom = directcom
-      if( spew .and. .not. cops%tfz(n)%null_op ) print *,n,'setting up compact tfz ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
+      if( spew .and. .not. cops%tfz(n)%null_op ) &
+          print *,n,'setting up compact tfz ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
     end do
     ! imfc
     spec = cops%control%imfcspec
@@ -3749,21 +3791,24 @@ contains
       if( null_op ) cycle
       call cops%imfcx(n)%setup(weight,xcom,xmsh,cops%mbc(:,1,n),null_opx)
       cops%imfcx(n)%directcom = directcom
-      if( spew .and. .not. cops%imfcx(n)%null_op ) print *,n,'setting up compact imfcx ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
+      if( spew .and. .not. cops%imfcx(n)%null_op ) &
+          print *,n,'setting up compact imfcx ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
     end do
     do n=1,cops%nop(2)
       cops%imfcy(n)%null_op = null_op
       if( null_op ) cycle
       call cops%imfcy(n)%setup(weight,ycom,ymsh,cops%mbc(:,2,n),null_opy)
       cops%imfcy(n)%directcom = directcom
-      if( spew .and. .not. cops%imfcy(n)%null_op ) print *,n,'setting up compact imfcy ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
+      if( spew .and. .not. cops%imfcy(n)%null_op ) &
+          print *,n,'setting up compact imfcy ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
     end do
     do n=1,cops%nop(3)
       cops%imfcz(n)%null_op = null_op
       if( null_op ) cycle
       call cops%imfcz(n)%setup(weight,zcom,zmsh,cops%mbc(:,3,n),null_opz)
       cops%imfcz(n)%directcom = directcom
-      if( spew .and. .not. cops%imfcz(n)%null_op ) print *,n,'setting up compact imfcz ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
+      if( spew .and. .not. cops%imfcz(n)%null_op ) &
+          print *,n,'setting up compact imfcz ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
     end do
     ! imcf
     spec = cops%control%imcfspec
@@ -3779,21 +3824,24 @@ contains
       if( null_op ) cycle
       call cops%imcfx(n)%setup(weight,xcom,xmsh,cops%mbc(:,1,n),null_opx)
       cops%imcfx(n)%directcom = directcom
-      if( spew .and. .not. cops%imcfx(n)%null_op ) print *,n,'setting up compact imcfx ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
+      if( spew .and. .not. cops%imcfx(n)%null_op ) &
+          print *,n,'setting up compact imcfx ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
     end do
     do n=1,cops%nop(2)
       cops%imcfy(n)%null_op = null_op
       if( null_op ) cycle
       call cops%imcfy(n)%setup(weight,ycom,ymsh,cops%mbc(:,2,n),null_opy)
       cops%imcfy(n)%directcom = directcom
-      if( spew .and. .not. cops%imcfy(n)%null_op ) print *,n,'setting up compact imcfy ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
+      if( spew .and. .not. cops%imcfy(n)%null_op ) &
+          print *,n,'setting up compact imcfy ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
     end do
     do n=1,cops%nop(3)
       cops%imcfz(n)%null_op = null_op
       if( null_op ) cycle
       call cops%imcfz(n)%setup(weight,zcom,zmsh,cops%mbc(:,3,n),null_opz)
       cops%imcfz(n)%directcom = directcom
-      if( spew .and. .not. cops%imcfz(n)%null_op ) print *,n,'setting up compact imcfz ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
+      if( spew .and. .not. cops%imcfz(n)%null_op ) &
+          print *,n,'setting up compact imcfz ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
     end do
     ! isr  ! right shift
     spec = cops%control%isrspec
@@ -3809,21 +3857,24 @@ contains
       if( null_op ) cycle
       call cops%isrx(n)%setup(weight,xcom,xmsh,cops%mbc(:,1,n),null_opx)
       cops%isrx(n)%directcom = directcom
-      if( spew .and. .not. cops%isrx(n)%null_op ) print *,n,'setting up compact isrx ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
+      if( spew .and. .not. cops%isrx(n)%null_op ) &
+          print *,n,'setting up compact isrx ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
     end do
     do n=1,cops%nop(2)
       cops%isry(n)%null_op = null_op
       if( null_op ) cycle
       call cops%isry(n)%setup(weight,ycom,ymsh,cops%mbc(:,2,n),null_opy)
       cops%isry(n)%directcom = directcom
-      if( spew .and. .not. cops%isry(n)%null_op ) print *,n,'setting up compact isry ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
+      if( spew .and. .not. cops%isry(n)%null_op ) &
+          print *,n,'setting up compact isry ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
     end do
     do n=1,cops%nop(3)
       cops%isrz(n)%null_op = null_op
       if( null_op ) cycle
       call cops%isrz(n)%setup(weight,zcom,zmsh,cops%mbc(:,3,n),null_opz)
       cops%isrz(n)%directcom = directcom
-      if( spew .and. .not. cops%isrz(n)%null_op ) print *,n,'setting up compact isrz ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
+      if( spew .and. .not. cops%isrz(n)%null_op ) &
+          print *,n,'setting up compact isrz ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
     end do
     ! isl  ! left shift
     spec = cops%control%islspec
@@ -3839,21 +3890,24 @@ contains
       if( null_op ) cycle
       call cops%islx(n)%setup(weight,xcom,xmsh,cops%mbc(:,1,n),null_opx)
       cops%islx(n)%directcom = directcom
-      if( spew .and. .not. cops%islx(n)%null_op ) print *,n,'setting up compact islx ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
+      if( spew .and. .not. cops%islx(n)%null_op ) &
+          print *,n,'setting up compact islx ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
     end do
     do n=1,cops%nop(2)
       cops%isly(n)%null_op = null_op
       if( null_op ) cycle
       call cops%isly(n)%setup(weight,ycom,ymsh,cops%mbc(:,2,n),null_opy)
       cops%isly(n)%directcom = directcom
-      if( spew .and. .not. cops%isly(n)%null_op ) print *,n,'setting up compact isly ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
+      if( spew .and. .not. cops%isly(n)%null_op ) &
+          print *,n,'setting up compact isly ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
     end do
     do n=1,cops%nop(3)
       cops%islz(n)%null_op = null_op
       if( null_op ) cycle
       call cops%islz(n)%setup(weight,zcom,zmsh,cops%mbc(:,3,n),null_opz)
       cops%islz(n)%directcom = directcom
-      if( spew .and. .not. cops%islz(n)%null_op ) print *,n,'setting up compact islz ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
+      if( spew .and. .not. cops%islz(n)%null_op ) &
+          print *,n,'setting up compact islz ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
     end do
     ! amrcf
     spec = cops%control%amrcfspec
@@ -3869,21 +3923,24 @@ contains
       if( null_op ) cycle
       call cops%amrcfx(n)%setup(weight,xcom,xmsh,cops%mbc(:,1,n),null_opx)
       cops%amrcfx(n)%directcom = directcom
-      if( spew .and. .not. cops%amrcfx(n)%null_op ) print *,n,'setting up compact amrcfx ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
+      if( spew .and. .not. cops%amrcfx(n)%null_op ) &
+          print *,n,'setting up compact amrcfx ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
     end do
     do n=1,cops%nop(2)
       cops%amrcfy(n)%null_op = null_op
       if( null_op ) cycle
       call cops%amrcfy(n)%setup(weight,ycom,ymsh,cops%mbc(:,2,n),null_opy)
       cops%amrcfy(n)%directcom = directcom
-      if( spew .and. .not. cops%amrcfy(n)%null_op ) print *,n,'setting up compact amrcfy ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
+      if( spew .and. .not. cops%amrcfy(n)%null_op ) &
+          print *,n,'setting up compact amrcfy ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
     end do
     do n=1,cops%nop(3)
       cops%amrcfz(n)%null_op = null_op
       if( null_op ) cycle
      call cops%amrcfz(n)%setup(weight,zcom,zmsh,cops%mbc(:,3,n),null_opz)
       cops%amrcfz(n)%directcom = directcom
-      if( spew .and. .not. cops%amrcfz(n)%null_op ) print *,n,'setting up compact amrcfz ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
+      if( spew .and. .not. cops%amrcfz(n)%null_op ) &
+          print *,n,'setting up compact amrcfz ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
     end do
     ! amrfc
     spec = cops%control%amrfcspec
@@ -3899,21 +3956,24 @@ contains
       if( null_op ) cycle
       call cops%amrfcx(n)%setup(weight,xcom,xmsh,cops%mbc(:,1,n),null_opx)
       cops%amrfcx(n)%directcom = directcom
-      if( spew .and. .not. cops%amrfcx(n)%null_op ) print *,n,'setting up compact amrfcx ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
+      if( spew .and. .not. cops%amrfcx(n)%null_op ) &
+          print *,n,'setting up compact amrfcx ',weight%description%name,' for ',xmsh%bc1,' ',xmsh%bcn
     end do
     do n=1,cops%nop(2)
       cops%amrfcy(n)%null_op = null_op
       if( null_op ) cycle
       call cops%amrfcy(n)%setup(weight,ycom,ymsh,cops%mbc(:,2,n),null_opy)
       cops%amrfcy(n)%directcom = directcom
-      if( spew .and. .not. cops%amrfcy(n)%null_op ) print *,n,'setting up compact amrfcy ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
+      if( spew .and. .not. cops%amrfcy(n)%null_op ) &
+          print *,n,'setting up compact amrfcy ',weight%description%name,' for ',ymsh%bc1,' ',ymsh%bcn
     end do
     do n=1,cops%nop(3)
       cops%amrfcz(n)%null_op = null_op
       if( null_op ) cycle
      call cops%amrfcz(n)%setup(weight,zcom,zmsh,cops%mbc(:,3,n),null_opz)
       cops%amrfcz(n)%directcom = directcom
-      if( spew .and. .not. cops%amrfcz(n)%null_op ) print *,n,'setting up compact amrfcz ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
+      if( spew .and. .not. cops%amrfcz(n)%null_op ) &
+          print *,n,'setting up compact amrfcz ',weight%description%name,' for ',zmsh%bc1,' ',zmsh%bcn
     end do
   end subroutine setup_compact_ops
 

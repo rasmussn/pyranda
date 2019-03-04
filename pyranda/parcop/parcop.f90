@@ -10,6 +10,8 @@
 !===================================================================================================
 MODULE parcop
 
+  USE iso_c_binding
+  USE MPI_F08
   USE LES_objects
   USE LES_comm, ONLY : LES_comm_world
   USE LES_compact_operators, ONLY : d1x,d1y,d1z,d4x,d4y,d4z
@@ -23,18 +25,21 @@ MODULE parcop
     SUBROUTINE setup(patch,level,COMM, &
          & nx,ny,nz,px,py,pz,coordsys, &
          & x1,xn,y1,yn,z1,zn,bx1,bxn,by1,byn,bz1,bzn)
+
+      USE MPI_F08
+
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: patch,level
-      INTEGER,               INTENT(IN) :: COMM
+      TYPE(MPI_Comm),        INTENT(IN) :: COMM
       INTEGER,               INTENT(IN) :: nx,ny,nz,px,py,pz
       INTEGER,               INTENT(IN) :: coordsys
-      REAL(kind=8),   INTENT(IN)   :: x1,xn,y1,yn,z1,zn
-      CHARACTER(LEN=*), INTENT(IN) :: bx1,bxn,by1,byn,bz1,bzn
+      REAL(c_double),        INTENT(IN) :: x1,xn,y1,yn,z1,zn
+      CHARACTER(LEN=*),      INTENT(IN) :: bx1,bxn,by1,byn,bz1,bzn
       
-      REAL(kind=8)                 :: x1f,xnf,y1f,ynf,z1f,znf
+      REAL(c_double)               :: x1f,xnf,y1f,ynf,z1f,znf
       INTEGER                      :: color,key
-      REAL(kind=8)                 :: simtime
-      REAL(kind=8)                 :: dx,dy,dz
+      REAL(c_double)               :: simtime
+      REAL(c_double)               :: dx,dy,dz
       
 
       color = 0
@@ -73,7 +78,7 @@ MODULE parcop
     SUBROUTINE setup_mesh_x3(patch,level,x1,x2,x3,meshPer) !mesh_perX,mesh_perY,mesh_perZ)
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: patch,level
-      REAL(kind=8), DIMENSION(:,:,:), INTENT(IN) :: x1,x2,x3
+      REAL(c_double), DIMENSION(:,:,:), INTENT(IN) :: x1,x2,x3
       LOGICAL, INTENT(IN) :: meshPer !mesh_perX,mesh_perY,mesh_perZ
       
       CALL setup_mesh_data_x3(patch,level,x1,x2,x3,meshPer) !mesh_perX,mesh_perY,mesh_perZ)
@@ -85,7 +90,7 @@ MODULE parcop
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
       CHARACTER(LEN=3), INTENT(IN) :: vname
-      real(kind=8), dimension(nx,ny,nz),intent(out) :: dxg
+      real(c_double), dimension(nx,ny,nz),intent(out) :: dxg
 
       SELECT CASE(TRIM(vname))
       CASE('x')
@@ -130,7 +135,7 @@ MODULE parcop
     SUBROUTINE xGrid(dxg,nx,ny,nz)
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
-      real(kind=8), dimension(nx,ny,nz),intent(out) :: dxg
+      real(c_double), dimension(nx,ny,nz),intent(out) :: dxg
       
       dxg = mesh_ptr%xgrid      
     END SUBROUTINE xGrid
@@ -138,7 +143,7 @@ MODULE parcop
     SUBROUTINE yGrid(dxg,nx,ny,nz)
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
-      real(kind=8), dimension(nx,ny,nz),intent(out) :: dxg      
+      real(c_double), dimension(nx,ny,nz),intent(out) :: dxg
 
       dxg = mesh_ptr%ygrid      
     END SUBROUTINE yGrid
@@ -146,7 +151,7 @@ MODULE parcop
     SUBROUTINE zGrid(dxg,nx,ny,nz)
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
-      real(kind=8), dimension(nx,ny,nz),intent(out) :: dxg      
+      real(c_double), dimension(nx,ny,nz),intent(out) :: dxg
 
       dxg = mesh_ptr%zgrid      
     END SUBROUTINE zGrid
@@ -154,7 +159,7 @@ MODULE parcop
         SUBROUTINE dxGrid(dxg,nx,ny,nz)
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
-      real(kind=8), dimension(nx,ny,nz),intent(out) :: dxg
+      real(c_double), dimension(nx,ny,nz),intent(out) :: dxg
       
       dxg = mesh_ptr%d1     
     END SUBROUTINE dxGrid
@@ -162,7 +167,7 @@ MODULE parcop
     SUBROUTINE dyGrid(dxg,nx,ny,nz)
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
-      real(kind=8), dimension(nx,ny,nz),intent(out) :: dxg      
+      real(c_double), dimension(nx,ny,nz),intent(out) :: dxg
 
       dxg = mesh_ptr%d2     
     END SUBROUTINE dyGrid
@@ -170,7 +175,7 @@ MODULE parcop
     SUBROUTINE dzGrid(dxg,nx,ny,nz)
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
-      real(kind=8), dimension(nx,ny,nz),intent(out) :: dxg      
+      real(c_double), dimension(nx,ny,nz),intent(out) :: dxg
 
       dxg = mesh_ptr%d3      
     END SUBROUTINE dzGrid
@@ -179,14 +184,14 @@ MODULE parcop
     SUBROUTINE mesh_getCellVol(CellVol,nx,ny,nz)
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
-      REAL(KIND=8), DIMENSION(nx,ny,nz),INTENT(out) :: CellVol
+      REAL(C_DOUBLE), DIMENSION(nx,ny,nz),INTENT(out) :: CellVol
       CellVol = mesh_ptr%CellVol            
     END SUBROUTINE mesh_getCellVol
 
     SUBROUTINE mesh_getGridLen(GridLen,nx,ny,nz)
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
-      REAL(KIND=8), DIMENSION(nx,ny,nz),INTENT(out) :: GridLen
+      REAL(C_DOUBLE), DIMENSION(nx,ny,nz),INTENT(out) :: GridLen
       GridLen = mesh_ptr%GridLen
     END SUBROUTINE mesh_getGridLen
 
@@ -202,8 +207,8 @@ MODULE parcop
     SUBROUTINE divergence(fx,fy,fz,val,nx,ny,nz)
       IMPLICIT NONE
       INTEGER,    INTENT(IN) :: nx,ny,nz
-      real(kind=8), dimension(nx,ny,nz),intent(in)  :: fx,fy,fz 
-      real(kind=8), dimension(nx,ny,nz),intent(out) :: val
+      real(c_double), dimension(nx,ny,nz),intent(in)  :: fx,fy,fz
+      real(c_double), dimension(nx,ny,nz),intent(out) :: val
 
       CALL div(fx,fy,fz,val)
       
@@ -213,8 +218,8 @@ MODULE parcop
     SUBROUTINE ddx(val,dval,nx,ny,nz)
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
-      real(kind=8), dimension(nx,ny,nz), intent(in) :: val
-      real(kind=8), dimension(nx,ny,nz),intent(out) :: dval      
+      real(c_double), dimension(nx,ny,nz), intent(in) :: val
+      real(c_double), dimension(nx,ny,nz),intent(out) :: dval
 
       CALL d1x(val,dval)
 
@@ -223,8 +228,8 @@ MODULE parcop
     SUBROUTINE ddy(val,dval,nx,ny,nz)
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
-      real(kind=8), dimension(nx,ny,nz), intent(in) :: val
-      real(kind=8), dimension(nx,ny,nz),intent(out) :: dval
+      real(c_double), dimension(nx,ny,nz), intent(in) :: val
+      real(c_double), dimension(nx,ny,nz),intent(out) :: dval
       
       CALL d1y(val,dval)
 
@@ -233,8 +238,8 @@ MODULE parcop
     SUBROUTINE ddz(val,dval,nx,ny,nz)
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
-      real(kind=8), dimension(nx,ny,nz), intent(in) :: val
-      real(kind=8), dimension(nx,ny,nz),intent(out) :: dval
+      real(c_double), dimension(nx,ny,nz), intent(in) :: val
+      real(c_double), dimension(nx,ny,nz),intent(out) :: dval
       
       CALL d1z(val,dval)
 
@@ -243,24 +248,24 @@ MODULE parcop
     SUBROUTINE dd4x(val,dval,nx,ny,nz)
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
-      real(kind=8), dimension(nx,ny,nz), intent(in) :: val
-      real(kind=8), dimension(nx,ny,nz),intent(out) :: dval      
+      real(c_double), dimension(nx,ny,nz), intent(in) :: val
+      real(c_double), dimension(nx,ny,nz),intent(out) :: dval
       CALL d4x(val,dval)
     END SUBROUTINE dd4x
 
     SUBROUTINE dd4y(val,dval,nx,ny,nz)
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
-      real(kind=8), dimension(nx,ny,nz), intent(in) :: val
-      real(kind=8), dimension(nx,ny,nz),intent(out) :: dval      
+      real(c_double), dimension(nx,ny,nz), intent(in) :: val
+      real(c_double), dimension(nx,ny,nz),intent(out) :: dval
       CALL d4y(val,dval)
     END SUBROUTINE dd4y
 
     SUBROUTINE dd4z(val,dval,nx,ny,nz)
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
-      real(kind=8), dimension(nx,ny,nz), intent(in) :: val
-      real(kind=8), dimension(nx,ny,nz),intent(out) :: dval      
+      real(c_double), dimension(nx,ny,nz), intent(in) :: val
+      real(c_double), dimension(nx,ny,nz),intent(out) :: dval
       CALL d4z(val,dval)
     END SUBROUTINE dd4z
 
@@ -269,8 +274,8 @@ MODULE parcop
     SUBROUTINE plaplacian(val,dval,nx,ny,nz)
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
-      real(kind=8), dimension(nx,ny,nz), intent(in) :: val
-      real(kind=8), dimension(nx,ny,nz),intent(out) :: dval
+      real(c_double), dimension(nx,ny,nz), intent(in) :: val
+      real(c_double), dimension(nx,ny,nz),intent(out) :: dval
       
       CALL Laplacian(val,dval)
 
@@ -279,8 +284,8 @@ MODULE parcop
     SUBROUTINE pRing(val,dval,nx,ny,nz)
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
-      real(kind=8), dimension(nx,ny,nz), intent(in) :: val
-      real(kind=8), dimension(nx,ny,nz),intent(out) :: dval
+      real(c_double), dimension(nx,ny,nz), intent(in) :: val
+      real(c_double), dimension(nx,ny,nz),intent(out) :: dval
       
       dval = ring( val )
 
@@ -289,8 +294,8 @@ MODULE parcop
     SUBROUTINE pRingV(vx,vy,vz,dval,nx,ny,nz)
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
-      real(kind=8), dimension(nx,ny,nz), intent(in) :: vx,vy,vz
-      real(kind=8), dimension(nx,ny,nz),intent(out) :: dval
+      real(c_double), dimension(nx,ny,nz), intent(in) :: vx,vy,vz
+      real(c_double), dimension(nx,ny,nz),intent(out) :: dval
       
       dval = ringV( vx, vy, vz )
 
@@ -301,8 +306,8 @@ MODULE parcop
     SUBROUTINE sFilter(val,dval,nx,ny,nz)
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
-      real(kind=8), dimension(nx,ny,nz), intent(in) :: val
-      real(kind=8), dimension(nx,ny,nz),intent(out) :: dval
+      real(c_double), dimension(nx,ny,nz), intent(in) :: val
+      real(c_double), dimension(nx,ny,nz),intent(out) :: dval
       CHARACTER(LEN=8), PARAMETER :: filtype='spectral'
 
       CALL filter(filtype,val,dval)
@@ -312,8 +317,8 @@ MODULE parcop
     SUBROUTINE gFilter(val,dval,nx,ny,nz)
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
-      real(kind=8), dimension(nx,ny,nz), intent(in) :: val
-      real(kind=8), dimension(nx,ny,nz),intent(out) :: dval
+      real(c_double), dimension(nx,ny,nz), intent(in) :: val
+      real(c_double), dimension(nx,ny,nz),intent(out) :: dval
       CHARACTER(LEN=6), PARAMETER :: filtype='smooth'
 
       CALL filter(filtype,val,dval)
@@ -323,8 +328,8 @@ MODULE parcop
     SUBROUTINE gFilterDir(val,dval,nx,ny,nz,dir)
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz,dir
-      real(kind=8), dimension(nx,ny,nz), intent(in) :: val
-      real(kind=8), dimension(nx,ny,nz),intent(out) :: dval
+      real(c_double), dimension(nx,ny,nz), intent(in) :: val
+      real(c_double), dimension(nx,ny,nz),intent(out) :: dval
       CHARACTER(LEN=6), PARAMETER :: filtype='smooth'
 
       CALL filterGdir(filtype,val,dval,dir)
@@ -335,8 +340,8 @@ MODULE parcop
     SUBROUTINE gradS(val,val1,val2,val3,nx,ny,nz)
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
-      real(kind=8), dimension(nx,ny,nz),intent(in) :: val
-      real(kind=8), dimension(nx,ny,nz), intent(out) :: val1,val2,val3
+      real(c_double), dimension(nx,ny,nz),intent(in) :: val
+      real(c_double), dimension(nx,ny,nz), intent(out) :: val1,val2,val3
     
       CALL grad(val,val1,val2,val3)
 
@@ -348,8 +353,8 @@ MODULE parcop
  !! Communication objects from Python
     SUBROUTINE commFromPy( patch, level, comm_list )
       IMPLICIT NONE
-      INTEGER,               INTENT(IN) :: patch,level
-      INTEGER, DIMENSION(7), INTENT(IN) :: comm_list
+      INTEGER,                      INTENT(IN) :: patch,level
+      TYPE(MPI_Comm), dimension(7), INTENT(IN) :: comm_list
 
       CALL point_to_objects(patch,level)
       
@@ -369,37 +374,37 @@ MODULE parcop
 
     SUBROUTINE commx(COMM)
       IMPLICIT NONE
-      INTEGER,               INTENT(OUT) :: COMM      
+      TYPE(MPI_Comm),        INTENT(OUT) :: COMM
       COMM = comm_ptr%xcom
     END SUBROUTINE commx
 
     SUBROUTINE commy(COMM)
       IMPLICIT NONE
-      INTEGER,               INTENT(OUT) :: COMM      
+      TYPE(MPI_Comm),        INTENT(OUT) :: COMM
       COMM = comm_ptr%ycom
     END SUBROUTINE commy
 
     SUBROUTINE commz(COMM)
       IMPLICIT NONE
-      INTEGER,               INTENT(OUT) :: COMM      
+      TYPE(MPI_Comm),        INTENT(OUT) :: COMM
       COMM = comm_ptr%zcom
     END SUBROUTINE commz
 
     SUBROUTINE commxy(COMM)
       IMPLICIT NONE
-      INTEGER,               INTENT(OUT) :: COMM      
+      TYPE(MPI_Comm),        INTENT(OUT) :: COMM
       COMM = comm_ptr%xycom
     END SUBROUTINE commxy
 
     SUBROUTINE commxz(COMM)
       IMPLICIT NONE
-      INTEGER,               INTENT(OUT) :: COMM      
+      TYPE(MPI_Comm),        INTENT(OUT) :: COMM
       COMM = comm_ptr%xzcom
     END SUBROUTINE commxz
 
     SUBROUTINE commyz(COMM)
       IMPLICIT NONE
-      INTEGER,               INTENT(OUT) :: COMM      
+      TYPE(MPI_Comm),        INTENT(OUT) :: COMM
       COMM = comm_ptr%yzcom
     END SUBROUTINE commyz
 
