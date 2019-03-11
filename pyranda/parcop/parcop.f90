@@ -57,7 +57,8 @@ MODULE parcop
       z1f = z1 - dz/2.0D0
       znf = zn + dz/2.0D0
 
-      CALL setup_objects(patch,level,color,key,coordsys,nx,ny,nz,px,py,pz,x1f,xnf,y1f,ynf,z1f,znf,bx1,bxn,by1,byn,bz1,bzn,simtime)
+      CALL setup_objects(patch,level,color,key,coordsys,nx,ny,nz,px,py,pz,x1f, &
+          xnf,y1f,ynf,z1f,znf,bx1,bxn,by1,byn,bz1,bzn,simtime)
 
 
     END SUBROUTINE setup
