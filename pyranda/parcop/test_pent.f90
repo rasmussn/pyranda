@@ -1,12 +1,12 @@
 PROGRAM test_pent
 
   USE iso_c_binding
-  USE MPI_F08
+  USE MPI
   USE LES_compact, ONLY : compact_type
   USE LES_patch, ONLY : patch_type
   USE LES_comm, ONLY : comm_type, LES_comm_world
   USE LES_mesh, ONLY : mesh_type
-  USE LES_objects 
+  USE LES_objects
   USE parcop, ONLY : setup,ddx,point_to_objects,setup_mesh
   IMPLICIT NONE
 
@@ -16,7 +16,7 @@ PROGRAM test_pent
   REAL(c_double)                 :: simtime
   INTEGER(c_int)                 :: world_id,world_np,mpierr
   REAL(c_double), DIMENSION(:,:,:), ALLOCATABLE :: rho,drho
-  INTEGER :: i 
+  INTEGER :: i
   INTEGER :: t1,t2,clock_rate,clock_max
   CHARACTER(LEN=32) :: arg
   INTEGER :: nargs,ii,iterations
@@ -27,7 +27,7 @@ PROGRAM test_pent
   CALL MPI_COMM_RANK(MPI_COMM_WORLD,rank,ierror)
 
   nargs = command_argument_count()
-  
+
   ! Print usage:
   IF ( rank == 0 .AND. nargs == 0) THEN
      PRINT*,"USAGE:"
@@ -37,7 +37,7 @@ PROGRAM test_pent
      PRINT*,"./test_pent 100 32 1 32 1 32 1"
      PRINT*,"mpirun -n 8 ./test_pent 100 64 2 64 2 64 2"
   ENDIF
-  
+
   ! Default domain, grid and processors map
   x1 = 0.0
   xn = 1.0
@@ -55,7 +55,7 @@ PROGRAM test_pent
   px = 1
   py = 1
   pz = 1
-  
+
   ! Iterations
   iterations = 100
 
@@ -63,7 +63,7 @@ PROGRAM test_pent
   ii=1
   IF (nargs >= ii) CALL GETARG(ii,arg)
   IF (nargs >= ii) READ(arg,'(I10)') iterations
-  
+
   ii=ii+1
   IF (nargs >= ii) CALL GETARG(ii,arg)
   IF (nargs >= ii) READ(arg,'(I10)') nx
@@ -88,15 +88,15 @@ PROGRAM test_pent
   IF (nargs >= ii) CALL GETARG(ii,arg)
   IF (nargs >= ii) READ(arg,'(I10)') pz
 
-  
-  
+
+
   bx1 = "NONE"
   bxn = "NONE"
   by1 = "NONE"
   byn = "NONE"
   bz1 = "NONE"
   bzn = "NONE"
-  
+
   simtime = 0.0D0
 
   ! Setup matrices/solvers
@@ -109,14 +109,14 @@ PROGRAM test_pent
   ! Allocated some arrays
   ALLOCATE( rho(nx/px,ny/py,nz/pz) )
   ALLOCATE(drho(nx/px,ny/py,nz/pz) )
-  
+
   ! rho = x
   rho = mesh_ptr%xgrid
 
   ! Time the derivatives
   CALL SYSTEM_CLOCK( t1, clock_rate, clock_max)
   DO i=1,iterations
-     CALL ddx(rho,drho,nx/px,ny/py,nz/pz)    
+     CALL ddx(rho,drho,nx/px,ny/py,nz/pz)
   END DO
   CALL SYSTEM_CLOCK( t2, clock_rate, clock_max)
 
@@ -124,9 +124,7 @@ PROGRAM test_pent
   IF ( rank == 0 ) THEN
      print*,'Ellapsed time = ', real(t2-t1) / real(clock_rate)
   END IF
-  
+
   CALL remove_objects(0,0)
 
 END PROGRAM test_pent
-
-
