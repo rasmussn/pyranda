@@ -10,7 +10,7 @@
 !===================================================================================================
 MODULE parcop
 
-  USE iso_c_binding
+  USE ISO_C_BINDING, ONLY : c_int, c_double
   USE LES_objects
   USE LES_comm, ONLY : LES_comm_world
   USE LES_compact_operators, ONLY : d1x,d1y,d1z,d4x,d4y,d4z
@@ -24,6 +24,7 @@ MODULE parcop
     SUBROUTINE setup(patch,level,COMM, &
          & nx,ny,nz,px,py,pz,coordsys, &
          & x1,xn,y1,yn,z1,zn,bx1,bxn,by1,byn,bz1,bzn)
+      use iso_c_binding, only : c_double, c_int
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: patch,level
       INTEGER(c_int),        INTENT(IN) :: COMM
@@ -72,6 +73,7 @@ MODULE parcop
 
 
     SUBROUTINE setup_mesh_x3(patch,level,x1,x2,x3,meshPer) !mesh_perX,mesh_perY,mesh_perZ)
+      use iso_c_binding, only : c_double
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: patch,level
       REAL(c_double), DIMENSION(:,:,:), INTENT(IN) :: x1,x2,x3
@@ -83,6 +85,7 @@ MODULE parcop
 
 
     SUBROUTINE getVar(dxg,vname,nx,ny,nz)
+      use iso_c_binding, only : c_double
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
       CHARACTER(LEN=3), INTENT(IN) :: vname
@@ -129,6 +132,7 @@ MODULE parcop
     END SUBROUTINE getVar
 
     SUBROUTINE xGrid(dxg,nx,ny,nz)
+      use iso_c_binding, only : c_double
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
       real(c_double), dimension(nx,ny,nz),intent(out) :: dxg
@@ -137,6 +141,7 @@ MODULE parcop
     END SUBROUTINE xGrid
 
     SUBROUTINE yGrid(dxg,nx,ny,nz)
+      use iso_c_binding, only : c_double
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
       real(c_double), dimension(nx,ny,nz),intent(out) :: dxg
@@ -145,6 +150,7 @@ MODULE parcop
     END SUBROUTINE yGrid
 
     SUBROUTINE zGrid(dxg,nx,ny,nz)
+      use iso_c_binding, only : c_double
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
       real(c_double), dimension(nx,ny,nz),intent(out) :: dxg
@@ -161,6 +167,7 @@ MODULE parcop
     END SUBROUTINE dxGrid
 
     SUBROUTINE dyGrid(dxg,nx,ny,nz)
+      use iso_c_binding, only : c_double
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
       real(c_double), dimension(nx,ny,nz),intent(out) :: dxg
@@ -169,6 +176,7 @@ MODULE parcop
     END SUBROUTINE dyGrid
 
     SUBROUTINE dzGrid(dxg,nx,ny,nz)
+      use iso_c_binding, only : c_double
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
       real(c_double), dimension(nx,ny,nz),intent(out) :: dxg
@@ -178,6 +186,7 @@ MODULE parcop
 
 
     SUBROUTINE mesh_getCellVol(CellVol,nx,ny,nz)
+      use iso_c_binding, only : c_double
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
       REAL(C_DOUBLE), DIMENSION(nx,ny,nz),INTENT(out) :: CellVol
@@ -185,6 +194,7 @@ MODULE parcop
     END SUBROUTINE mesh_getCellVol
 
     SUBROUTINE mesh_getGridLen(GridLen,nx,ny,nz)
+      use iso_c_binding, only : c_double
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
       REAL(C_DOUBLE), DIMENSION(nx,ny,nz),INTENT(out) :: GridLen
@@ -201,6 +211,7 @@ MODULE parcop
     END SUBROUTINE set_patch
 
     SUBROUTINE divergence(fx,fy,fz,val,nx,ny,nz)
+      use iso_c_binding, only : c_double
       IMPLICIT NONE
       INTEGER,    INTENT(IN) :: nx,ny,nz
       real(c_double), dimension(nx,ny,nz),intent(in)  :: fx,fy,fz
@@ -212,6 +223,7 @@ MODULE parcop
     END SUBROUTINE divergence
 
     SUBROUTINE ddx(val,dval,nx,ny,nz)
+      use iso_c_binding, only : c_double
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
       real(c_double), dimension(nx,ny,nz), intent(in) :: val
@@ -222,6 +234,7 @@ MODULE parcop
     END SUBROUTINE ddx
 
     SUBROUTINE ddy(val,dval,nx,ny,nz)
+      use iso_c_binding, only : c_double
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
       real(c_double), dimension(nx,ny,nz), intent(in) :: val
@@ -232,6 +245,7 @@ MODULE parcop
     END SUBROUTINE ddy
 
     SUBROUTINE ddz(val,dval,nx,ny,nz)
+      use iso_c_binding, only : c_double
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
       real(c_double), dimension(nx,ny,nz), intent(in) :: val
@@ -242,6 +256,7 @@ MODULE parcop
     END SUBROUTINE ddz
 
     SUBROUTINE dd4x(val,dval,nx,ny,nz)
+      use iso_c_binding, only : c_double
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
       real(c_double), dimension(nx,ny,nz), intent(in) :: val
@@ -250,6 +265,7 @@ MODULE parcop
     END SUBROUTINE dd4x
 
     SUBROUTINE dd4y(val,dval,nx,ny,nz)
+      use iso_c_binding, only : c_double
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
       real(c_double), dimension(nx,ny,nz), intent(in) :: val
@@ -258,6 +274,7 @@ MODULE parcop
     END SUBROUTINE dd4y
 
     SUBROUTINE dd4z(val,dval,nx,ny,nz)
+      use iso_c_binding, only : c_double
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
       real(c_double), dimension(nx,ny,nz), intent(in) :: val
@@ -268,6 +285,7 @@ MODULE parcop
 
 
     SUBROUTINE plaplacian(val,dval,nx,ny,nz)
+      use iso_c_binding, only : c_double
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
       real(c_double), dimension(nx,ny,nz), intent(in) :: val
@@ -278,6 +296,7 @@ MODULE parcop
     END SUBROUTINE plaplacian
 
     SUBROUTINE pRing(val,dval,nx,ny,nz)
+      use iso_c_binding, only : c_double
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
       real(c_double), dimension(nx,ny,nz), intent(in) :: val
@@ -288,6 +307,7 @@ MODULE parcop
     END SUBROUTINE pRing
 
     SUBROUTINE pRingV(vx,vy,vz,dval,nx,ny,nz)
+      use iso_c_binding, only : c_double
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
       real(c_double), dimension(nx,ny,nz), intent(in) :: vx,vy,vz
@@ -300,6 +320,7 @@ MODULE parcop
 
 
     SUBROUTINE sFilter(val,dval,nx,ny,nz)
+      use iso_c_binding, only : c_double
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
       real(c_double), dimension(nx,ny,nz), intent(in) :: val
@@ -311,6 +332,7 @@ MODULE parcop
     END SUBROUTINE sFilter
 
     SUBROUTINE gFilter(val,dval,nx,ny,nz)
+      use iso_c_binding, only : c_double
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
       real(c_double), dimension(nx,ny,nz), intent(in) :: val
@@ -322,6 +344,7 @@ MODULE parcop
     END SUBROUTINE gFilter
 
     SUBROUTINE gFilterDir(val,dval,nx,ny,nz,dir)
+      use iso_c_binding, only : c_double
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz,dir
       real(c_double), dimension(nx,ny,nz), intent(in) :: val
@@ -334,6 +357,7 @@ MODULE parcop
 
 
     SUBROUTINE gradS(val,val1,val2,val3,nx,ny,nz)
+      use iso_c_binding, only : c_double
       IMPLICIT NONE
       INTEGER,               INTENT(IN) :: nx,ny,nz
       real(c_double), dimension(nx,ny,nz),intent(in) :: val
@@ -348,6 +372,7 @@ MODULE parcop
 
  !! Communication objects from Python
     SUBROUTINE commFromPy( patch, level, comm_list )
+      use iso_c_binding, only : c_int
       IMPLICIT NONE
       INTEGER,                      INTENT(IN) :: patch,level
       INTEGER(c_int), dimension(7), INTENT(IN) :: comm_list
@@ -369,36 +394,42 @@ MODULE parcop
 
 
     SUBROUTINE commx(COMM)
+      use iso_c_binding, only : c_int
       IMPLICIT NONE
       INTEGER(c_int),        INTENT(OUT) :: COMM
       COMM = comm_ptr%xcom
     END SUBROUTINE commx
 
     SUBROUTINE commy(COMM)
+      use iso_c_binding, only : c_int
       IMPLICIT NONE
       INTEGER(c_int),        INTENT(OUT) :: COMM
       COMM = comm_ptr%ycom
     END SUBROUTINE commy
 
     SUBROUTINE commz(COMM)
+      use iso_c_binding, only : c_int
       IMPLICIT NONE
       INTEGER(c_int),        INTENT(OUT) :: COMM
       COMM = comm_ptr%zcom
     END SUBROUTINE commz
 
     SUBROUTINE commxy(COMM)
+      use iso_c_binding, only : c_int
       IMPLICIT NONE
       INTEGER(c_int),        INTENT(OUT) :: COMM
       COMM = comm_ptr%xycom
     END SUBROUTINE commxy
 
     SUBROUTINE commxz(COMM)
+      use iso_c_binding, only : c_int
       IMPLICIT NONE
       INTEGER(c_int),        INTENT(OUT) :: COMM
       COMM = comm_ptr%xzcom
     END SUBROUTINE commxz
 
     SUBROUTINE commyz(COMM)
+      use iso_c_binding, only : c_int
       IMPLICIT NONE
       INTEGER(c_int),        INTENT(OUT) :: COMM
       COMM = comm_ptr%yzcom
