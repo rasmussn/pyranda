@@ -12,18 +12,17 @@
  MODULE LES_comm
 !===================================================================================================
   USE iso_c_binding
-  USE MPI_F08
+  USE MPI
   !USE LES_input, ONLY : xop,yop,zop,xdice,ydice,zdice,compressible,calcSpectrum,print_screen
   USE LES_patch, ONLY : patch_type
   IMPLICIT NONE
 
-  TYPE(MPI_Comm)            :: LES_comm_world     ! settable world comm       *APIVAR*
-
   INTEGER(c_int), PARAMETER :: master = 0         ! master process
+  INTEGER(c_int)            :: LES_comm_world     ! settable world comm       *APIVAR*
   INTEGER(c_int)            :: world_id = 0       ! world-rank of MPI process *APIVAR*
   INTEGER(c_int)            :: world_np = 1       ! number of MPI processes
+  INTEGER(c_int), DIMENSION(MPI_STATUS_SIZE) :: mpistatus
   INTEGER(c_int)   :: mpisource,mpitag,mpierr
-  TYPE(MPI_Status) :: mpistatus
 
   LOGICAL(c_bool), PARAMETER :: compressible = .TRUE.
   LOGICAL(c_bool), PARAMETER :: calcSpectrum = .FALSE.
@@ -34,23 +33,19 @@
   INTEGER(c_int) :: xdice = 3                 ! index/plane subdivided in x-transpose
   INTEGER(c_int) :: ydice = 3                 ! index/plane subdivided in y-transpose
   INTEGER(c_int) :: zdice = 1                 ! index/plane subdivided in z-transpose
-  
+
   TYPE comm_type
     ! PATCH COMMUNICATOR ---------------------------------------------------------------------------
-    TYPE(MPI_Comm) :: patcom
-    INTEGER(c_int) :: patcom_np,patcom_id
+    INTEGER(c_int) :: patcom,patcom_np,patcom_id
 
     ! CARTESIAN COMMUNICATORS ----------------------------------------------------------------------
-    TYPE(MPI_Comm) :: xcom,ycom,zcom
-    TYPE(MPI_Comm) :: xyzcom,xycom,xzcom,yzcom
-
-    INTEGER(c_int) :: xyzcom_np,xyzcom_id
-    INTEGER(c_int) :: xycom_np,xycom_id
-    INTEGER(c_int) :: xzcom_np,xzcom_id
-    INTEGER(c_int) :: yzcom_np,yzcom_id
-    INTEGER(c_int) :: xcom_np,xcom_id,xcom_lo,xcom_hi
-    INTEGER(c_int) :: ycom_np,ycom_id,ycom_lo,ycom_hi
-    INTEGER(c_int) :: zcom_np,zcom_id,zcom_lo,zcom_hi
+    INTEGER(c_int) :: xyzcom,xyzcom_np,xyzcom_id
+    INTEGER(c_int) :: xycom,xycom_np,xycom_id
+    INTEGER(c_int) :: xzcom,xzcom_np,xzcom_id
+    INTEGER(c_int) :: yzcom,yzcom_np,yzcom_id
+    INTEGER(c_int) :: xcom,xcom_np,xcom_id,xcom_lo,xcom_hi
+    INTEGER(c_int) :: ycom,ycom_np,ycom_id,ycom_lo,ycom_hi
+    INTEGER(c_int) :: zcom,zcom_np,zcom_id,zcom_lo,zcom_hi
     INTEGER(c_int), DIMENSION(2) :: xrange,yrange,zrange
     ! TRANSPOSES -----------------------------------------------------------------------------------
     INTEGER(c_int) :: bx_xtran ! number of x grid points per processor after x transpose
@@ -65,12 +60,12 @@
     CONTAINS
      PROCEDURE :: setup => setup_comm
      PROCEDURE :: remove => remove_comm
-!     FINAL :: remove_mesh     	
+!     FINAL :: remove_mesh
   END TYPE comm_type
-  
+
 !===================================================================================================
   CONTAINS
-!=================================================================================================== 
+!===================================================================================================
 
    SUBROUTINE setup_comm(comm_data,patch_data)
     IMPLICIT NONE
@@ -78,7 +73,7 @@
     CLASS(patch_type), INTENT(IN)  :: patch_data
     LOGICAL, PARAMETER :: reorder = .TRUE.
     INTEGER, PARAMETER :: ndim = 3
-    CHARACTER(KIND=c_char,LEN=3), PARAMETER :: fileorder = 'XYZ' ! processor-ordering restart files (first coordinate varies the fastest) 
+    CHARACTER(KIND=c_char,LEN=3), PARAMETER :: fileorder = 'XYZ' ! processor-ordering restart files (first coordinate varies the fastest)
     INTEGER, DIMENSION(ndim), PARAMETER :: pdir = (/ 3, 2, 1 /)  ! goes with fileorder
     INTEGER :: xyzmap(3),xymap(2),xzmap(2),yzmap(2)              ! maps
     INTEGER :: xdice_valid(3),bxdim(3),bxdim_valid(3,3)          ! register of valid x-transposes
@@ -111,8 +106,8 @@
                bx_ztran  => comm_data%bx_ztran,   by_ztran  => comm_data%by_ztran,   bz_ztran  => comm_data%bz_ztran)
 ! patch communicator
      CALL MPI_COMM_SPLIT(LES_comm_world, color, key, patcom, mpierr);
-     CALL MPI_COMM_SIZE(patcom,patcom_np,mpierr)	
-     CALL MPI_COMM_RANK(patcom,patcom_id,mpierr)       
+     CALL MPI_COMM_SIZE(patcom,patcom_np,mpierr)
+     CALL MPI_COMM_RANK(patcom,patcom_id,mpierr)
 ! user-specified ordering of processor layout
 !     SELECT CASE(fileorder) ! highest number varies fastest
 !     CASE('ZYX')
@@ -432,7 +427,7 @@
       IF (comm_data%xyzcom .NE. MPI_COMM_NULL) CALL MPI_COMM_FREE( comm_data%xyzcom, mpierr)
       IF (comm_data%patcom .NE. MPI_COMM_NULL) CALL MPI_COMM_FREE( comm_data%patcom, mpierr)
    END SUBROUTINE remove_comm
-      
+
 !===================================================================================================
  END MODULE LES_comm
 !===================================================================================================

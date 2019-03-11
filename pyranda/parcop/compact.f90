@@ -10,7 +10,7 @@
 !===================================================================================================
 module LES_compact
   USE iso_c_binding
-  USE MPI_F08
+  USE MPI
   !USE LES_input, ONLY : bpp_lus_opt,use_ppent_opt,directcom,zerodx,zerody,zerodz
   USE LES_stencils
   USE LES_patch, ONLY : patch_type
@@ -42,14 +42,13 @@ module LES_compact
     LOGICAL(c_bool) :: implicit_op  ! invert lhs
     LOGICAL(c_bool) :: periodic  ! periodicity
     INTEGER(c_int), dimension(2) :: bc,range  ! 1D bcs, range
-    TYPE(MPI_Comm) :: hash
-    INTEGER(c_int) :: np,id,lo,hi       ! 1D comm data
+    INTEGER(c_int) :: hash,np,id,lo,hi       ! 1D comm data
     real(KIND=c_double) :: d  ! nomimal grid spacing
     real(KIND=c_double) :: sh = zero ! shift from base grid
     real(kind=c_double), dimension(:,:), allocatable :: art ! transposed rhs (matrix compat.)
     real(kind=c_double), dimension(:,:), allocatable :: ar  ! rhs
     real(kind=c_double), dimension(:,:), allocatable :: al  ! lhs
-    real(kind=c_double), dimension(:,:), allocatable :: rc  ! rhs overlap 
+    real(kind=c_double), dimension(:,:), allocatable :: rc  ! rhs overlap
     real(kind=c_double), dimension(:,:,:,:), allocatable :: aa ! parallel weights
   contains   ! generic
     procedure :: setup => setup_compact_op1
@@ -62,7 +61,7 @@ module LES_compact
   END TYPE compact_op1
 
   ! these extensions override the generic operations
-  
+
   type, extends(compact_op1) :: compact_op1_d1  ! custom operator (backward compat.)
   contains
 !    procedure :: evalx => eval_compact_op1x_d1t  ! matrix version (transposed rhs)
@@ -70,35 +69,35 @@ module LES_compact
     procedure :: evaly => eval_compact_op1y_d1  ! matrix version
     procedure :: evalz => eval_compact_op1z_d1  ! matrix version
   end type
-  
+
   type, extends(compact_op1) :: compact_op1_r3  ! custom operator (backward compat.)
   contains
     procedure :: evalx => eval_compact_op1x_r3  ! rhs stencil = 3
     procedure :: evaly => eval_compact_op1y_r3  ! rhs stencil = 3
     procedure :: evalz => eval_compact_op1z_r3  ! rhs stencil = 3
   end type
-  
+
   type, extends(compact_op1) :: compact_op1_r4  ! custom operator (backward compat.)
   contains
     procedure :: evalx => eval_compact_op1x_r4  ! rhs stencil = 4
     procedure :: evaly => eval_compact_op1y_r4  ! rhs stencil = 4
     procedure :: evalz => eval_compact_op1z_r4  ! rhs stencil = 4
   end type
-  
+
   type, extends(compact_op1) :: compact_cf1    ! custom operator
   contains
     procedure :: evalcfx => eval_compact_cf1x  ! different interface
     procedure :: evalcfy => eval_compact_cf1y  ! different interface
     procedure :: evalcfz => eval_compact_cf1z  ! different interface
   end type
-  
+
   type, extends(compact_op1) :: compact_fc1    ! custom operator
   contains
     procedure :: evalfcx => eval_compact_fc1x  ! different interface
     procedure :: evalfcy => eval_compact_fc1y  ! different interface
     procedure :: evalfcz => eval_compact_fc1z  ! different interface
   end type
-  
+
   TYPE control_type  ! from input or samrai
     LOGICAL(c_bool) :: null_opx=.false.,null_opy=.false.,null_opz=.false.    ! skip operations
     integer(c_int) :: d1spec=1,d2spec=1,d4spec=1,d8spec=1,gfspec=6,sfspec=1,tfspec=8  ! compact scheme
@@ -106,7 +105,7 @@ module LES_compact
     integer(c_int) :: amrcfspec=1,amrfcspec=2                                ! compact scheme
     INTEGER(c_int) :: directcom = 1  ! parallel solve
   END TYPE control_type
-  
+
   type(control_type) :: control_data
 
   type compact_type  ! suite of operations
@@ -127,7 +126,7 @@ module LES_compact
     procedure :: setup => setup_compact_ops
     procedure :: remove => remove_compact_ops
   end type compact_type
-  
+
   type(compact_type), pointer :: compact_ops => null()
 
 !   TYPE line_type  ! 1D block and mesh data for compact setup
@@ -140,7 +139,7 @@ module LES_compact
 !     LOGICAL                        :: periodic    ! periodic directions
 !     INTEGER         :: hash,np,id,lo,hi,range(2)  ! comm stuff -> [x,y,z]com,com_{np,id,lo,hi},range
 !   END TYPE line_type
-!   
+!
 !   type(line_type) :: xline,yline,zline
 
   TYPE mesh1_type  ! 1D
@@ -149,14 +148,13 @@ module LES_compact
     real(kind=c_double) :: d,bv1,bvn         ! grid spacing/metric -> d[x,y,z], [x,y,z][1,n]
     CHARACTER(KIND=c_char,LEN=4) :: bc1,bcn  ! boundary conditions (string) -> b[x,y,z][1,n]
   END TYPE mesh1_type
-  
+
 !   type(mesh1_type) :: xmesh_data,ymesh_data,zmesh_data
 
   TYPE comm1_type  ! 1D ! for testing
 !    INTEGER(c_int) :: n,p  ! -> n[x,y,z], p[x,y,z]
     logical(c_bool) :: periodic  ! -> periodic[x,y,z]
-    TYPE(MPI_Comm) :: hash                       ! -> [x,y,z]com,com_{np,id,lo,hi},range
-    INTEGER(c_int) :: np,id,lo,hi,range(2)
+    INTEGER(c_int) :: hash,np,id,lo,hi,range(2)  ! -> [x,y,z]com,com_{np,id,lo,hi},range
   END TYPE comm1_type
 
 !   type(comm1_type) :: xcom_data,ycom_data,zcom_data
@@ -396,7 +394,7 @@ contains
     if( np == 1 ) return
     ! use parallel solver
      allocate( dvop(ni,my,mz), dvo(ni,my,mz,0:np-1) )
-     forall(i=1:nol,j=1:my,k=1:mz) 
+     forall(i=1:nol,j=1:my,k=1:mz)
        dvop(i,j,k) = dv(i,j,k)
        dvop(i+nol,j,k) = dv(mx+i-nol,j,k)
      end forall
@@ -546,7 +544,7 @@ contains
     if( np == 1 ) return
     ! use parallel solver
      allocate( dvop(ni,mx,mz), dvo(ni,mx,mz,0:np-1) )
-     forall(i=1:mx,j=1:nol,k=1:mz) 
+     forall(i=1:mx,j=1:nol,k=1:mz)
        dvop(j,i,k) = dv(i,j,k)
        dvop(j+nol,i,k) = dv(i,my+j-nol,k)
      end forall
@@ -692,7 +690,7 @@ contains
     if( np == 1 ) return
     ! use parallel solver
      allocate( dvop(ni,mx,my), dvo(ni,mx,my,0:np-1) )
-     forall(i=1:mx,j=1:my,k=1:nol) 
+     forall(i=1:mx,j=1:my,k=1:nol)
        dvop(k,i,j) = dv(i,j,k)
        dvop(k+nol,i,j) = dv(i,j,mz+k-nol)
      end forall
@@ -835,7 +833,7 @@ contains
     if( np == 1 ) return
     ! use parallel solver
      allocate( dvop(ni,my,mz), dvo(ni,my,mz,0:np-1) )
-     forall(i=1:nol,j=1:my,k=1:mz) 
+     forall(i=1:nol,j=1:my,k=1:mz)
        dvop(i,j,k) = dv(i,j,k)
        dvop(i+nol,j,k) = dv(mx+i-nol,j,k)
      end forall
@@ -970,7 +968,7 @@ contains
     if( np == 1 ) return
     ! use parallel solver
      allocate( dvop(ni,mx,mz), dvo(ni,mx,mz,0:np-1) )
-     forall(i=1:mx,j=1:nol,k=1:mz) 
+     forall(i=1:mx,j=1:nol,k=1:mz)
        dvop(j,i,k) = dv(i,j,k)
        dvop(j+nol,i,k) = dv(i,my+j-nol,k)
      end forall
@@ -1105,7 +1103,7 @@ contains
     if( np == 1 ) return
     ! use parallel solver
      allocate( dvop(ni,mx,my), dvo(ni,mx,my,0:np-1) )
-     forall(i=1:mx,j=1:my,k=1:nol) 
+     forall(i=1:mx,j=1:my,k=1:nol)
        dvop(k,i,j) = dv(i,j,k)
        dvop(k+nol,i,j) = dv(i,j,mz+k-nol)
      end forall
@@ -1240,7 +1238,7 @@ contains
     if( np == 1 ) return
     ! use parallel solver
      allocate( dvop(ni,my,mz), dvo(ni,my,mz,0:np-1) )
-     forall(i=1:nol,j=1:my,k=1:mz) 
+     forall(i=1:nol,j=1:my,k=1:mz)
        dvop(i,j,k) = dv(i,j,k)
        dvop(i+nol,j,k) = dv(mx+i-nol,j,k)
      end forall
@@ -1375,7 +1373,7 @@ contains
     if( np == 1 ) return
     ! use parallel solver
      allocate( dvop(ni,mx,mz), dvo(ni,mx,mz,0:np-1) )
-     forall(i=1:mx,j=1:nol,k=1:mz) 
+     forall(i=1:mx,j=1:nol,k=1:mz)
        dvop(j,i,k) = dv(i,j,k)
        dvop(j+nol,i,k) = dv(i,my+j-nol,k)
      end forall
@@ -1510,7 +1508,7 @@ contains
     if( np == 1 ) return
     ! use parallel solver
      allocate( dvop(ni,mx,my), dvo(ni,mx,my,0:np-1) )
-     forall(i=1:mx,j=1:my,k=1:nol) 
+     forall(i=1:mx,j=1:my,k=1:nol)
        dvop(k,i,j) = dv(i,j,k)
        dvop(k+nol,i,j) = dv(i,j,mz+k-nol)
      end forall
@@ -1555,7 +1553,7 @@ contains
      deallocate( dvop, dvo )
   end function eval_compact_op1z
 
-  function eval_compact_op1bx(op,v,vbr1,vbr2) result(dv)  ! generalized, uses 1D op type, ghost cells 
+  function eval_compact_op1bx(op,v,vbr1,vbr2) result(dv)  ! generalized, uses 1D op type, ghost cells
     implicit none
     class(compact_op1), intent(in) :: op
     real(kind=c_double), dimension(:,:,:), intent(in) :: v
@@ -1646,7 +1644,7 @@ contains
      end select
      deallocate( dvop, dvo )
   end function eval_compact_op1bx
-  
+
   subroutine ghost_compact_op1x(op,v,vbr1,vbr2)  !,level,patch)
     implicit none
     class(compact_op1), intent(in) :: op
@@ -2179,7 +2177,7 @@ contains
     nor = op%nor ; nir = op%nir ; nr = op%ncr
     nol = op%nol ; nl = op%ncl ; ni = op%nci
     np =  op%np
-!---------------------------------------------------------------------------------------------------      
+!---------------------------------------------------------------------------------------------------
 ! ghost data
     allocate( vbr1(ax,3,az),vbr2(ax,3,az) )
     allocate( vbs1(ax,3,az),vbs2(ax,3,az) )
@@ -2401,7 +2399,7 @@ contains
     nor = op%nor ; nir = op%nir ; nr = op%ncr
     nol = op%nol ; nl = op%ncl ; ni = op%nci
     np =  op%np
-!---------------------------------------------------------------------------------------------------      
+!---------------------------------------------------------------------------------------------------
     ! explicit part
 ! ghost data
     allocate( vbr1(ax,ay,3),vbr2(ax,ay,3) )
@@ -2695,7 +2693,7 @@ contains
     if( np == 1 ) return
     ! parallel solver
       allocate( dvop(4,ay,az), dvo(4,ay,az,0:np-1) )
-      forall(i=1:2,j=1:ay,k=1:az) 
+      forall(i=1:2,j=1:ay,k=1:az)
         dvop(i,j,k) = dv(i,j,k)
         dvop(i+2,j,k) = dv(ax+i-2,j,k)
       end forall
@@ -2841,7 +2839,7 @@ contains
     if( np == 1 ) return
     ! parallel solver
       allocate( dvop(4,ax,az), dvo(4,ax,az,0:np-1) )
-      forall(i=1:ax,j=1:2,k=1:az) 
+      forall(i=1:ax,j=1:2,k=1:az)
         dvop(j,i,k) = dv(i,j,k)
         dvop(j+2,i,k) = dv(i,ay+j-2,k)
       end forall
@@ -2987,7 +2985,7 @@ contains
     if( np == 1 ) return
     ! parallel solver
       allocate( dvop(4,ax,ay), dvo(4,ax,ay,0:np-1) )
-      forall(i=1:ax,j=1:ay,k=1:2) 
+      forall(i=1:ax,j=1:ay,k=1:2)
         dvop(k,i,j) = dv(i,j,k)
         dvop(k+2,i,j) = dv(i,j,az+k-2)
       end forall
@@ -3137,7 +3135,7 @@ contains
     if( np == 1 ) return
     ! parallel solver
       allocate( dvop(4,ay,az), dvo(4,ay,az,0:np-1) )
-      forall(i=1:2,j=1:ay,k=1:az) 
+      forall(i=1:2,j=1:ay,k=1:az)
         dvop(i,j,k) = dv(i,j,k)
         dvop(i+2,j,k) = dv(ax+i-2,j,k)
       end forall
@@ -3285,7 +3283,7 @@ contains
     if( np == 1 ) return
     ! parallel solver
       allocate( dvop(4,ax,az), dvo(4,ax,az,0:np-1) )
-      forall(i=1:ax,j=1:2,k=1:az) 
+      forall(i=1:ax,j=1:2,k=1:az)
         dvop(j,i,k) = dv(i,j,k)
         dvop(j+2,i,k) = dv(i,ay+j-2,k)
       end forall
@@ -3433,7 +3431,7 @@ contains
     if( np == 1 ) return
     ! parallel solver
       allocate( dvop(4,ax,ay), dvo(4,ax,ay,0:np-1) )
-      forall(i=1:ax,j=1:ay,k=1:2) 
+      forall(i=1:ax,j=1:ay,k=1:2)
         dvop(k,i,j) = dv(i,j,k)
         dvop(k+2,i,j) = dv(i,j,az+k-2)
       end forall
@@ -3983,4 +3981,3 @@ contains
   end subroutine remove_compact_ops
 
 end module LES_compact
-
